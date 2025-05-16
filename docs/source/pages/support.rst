@@ -4,7 +4,7 @@ Citation Request
 
 Please include these citations if you plan to use this library::
 
-    @software{thieu20250503,
+    @software{thieu20250517PyLWL,
         author       = {Nguyen Van Thieu},
         title        = {PyLWL: A Python Framework for Locally Weighted Learning},
         month        = may,
