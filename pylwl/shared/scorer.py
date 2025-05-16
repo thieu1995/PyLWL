@@ -10,9 +10,9 @@ from sklearn.model_selection import cross_validate
 from sklearn.model_selection import learning_curve
 from sklearn.model_selection import permutation_test_score
 from sklearn.model_selection import validation_curve
+from sklearn.metrics import make_scorer
 from permetrics.regression import RegressionMetric
 from permetrics.classification import ClassificationMetric
-from sklearn.metrics import make_scorer
 
 
 def get_metrics(problem, y_true, y_pred, metrics=None, testcase="test"):

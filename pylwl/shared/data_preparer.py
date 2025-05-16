@@ -6,7 +6,7 @@
 
 import numpy as np
 from sklearn.model_selection import train_test_split
-from unilvq.common.data_scaler import *
+from pylwl.shared.scaler import *
 
 
 class TimeSeriesDifferencer:
