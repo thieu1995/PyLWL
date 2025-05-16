@@ -8,7 +8,7 @@
 [![Tests & Publishes to PyPI](https://github.com/thieu1995/PyLWL/actions/workflows/publish-package.yaml/badge.svg)](https://github.com/thieu1995/PyLWL/actions/workflows/publish-package.yaml)
 [![Documentation Status](https://readthedocs.org/projects/pylwl/badge/?version=latest)](https://pylwl.readthedocs.io/en/latest/?badge=latest)
 [![Chat](https://img.shields.io/badge/Chat-on%20Telegram-blue)](https://t.me/+fRVCJGuGJg1mNDg1)
-[![DOI](https://img.shields.io/badge/DOI-10.6084%2Fm9.figshare.29089784-blue)](10.6084/m9.figshare.29089784)
+[![DOI](https://img.shields.io/badge/DOI-10.6084%2Fm9.figshare.29089784-blue)](https://doi.org/10.6084/m9.figshare.29089784)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 ---
