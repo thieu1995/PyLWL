@@ -16,8 +16,8 @@
 
 ## 📌 Overview
 
-**UniLVQ** is an open-source Python library that provides a unified, extensible, and user-friendly 
-implementation of *Local Weighted Learning* (LWL) algorithms for supervised learning.
+**PyLWL** is an open-source Python library that provides a unified, extensible, and user-friendly 
+implementation of *Locally Weighted Learning* (LWL) algorithms for supervised learning.
 It implements differentiable and gradient-descent-based local models for both classification and regression tasks.
 
 ## Features
@@ -119,7 +119,7 @@ This project is licensed under the GPLv3 License. See the LICENSE file for more 
 Please include these citations if you plan to use this library:
 
 ```bibtex
-@software{thieu20250515UniLVQ,
+@software{thieu20250517PyLWL,
   author       = {Nguyen Van Thieu},
   title        = {PyLWL: A Python Framework for Locally Weighted Learning},
   month        = may,
