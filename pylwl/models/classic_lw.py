@@ -73,3 +73,151 @@ class BaseLW(BaseModel):
         W = np.clip(W, 1e-8, 1e8)
         return W
 
+
+class LwRegressor(BaseLW, RegressorMixin):
+    """
+    Locally Weighted Regressor.
+
+    This class implements a locally weighted regression model using a specified kernel function
+    and bandwidth parameter. It predicts target values by fitting a weighted linear model
+    for each query point.
+
+    Parameters
+    ----------
+    kernel : str or callable, optional
+        The kernel function to use. If a string is provided, it should match the name of a kernel
+        function in the `kernel_module`. If a callable is provided, it should accept distances
+        and `tau` as arguments and return weights.
+    tau : float, optional
+        The bandwidth parameter for the kernel function (default: 1.0).
+
+    Attributes
+    ----------
+    X_ : ndarray, shape (n_samples, n_features)
+        The training data.
+    y_ : ndarray, shape (n_samples,)
+        The target values for the training data.
+    """
+
+    def __init__(self, kernel="gaussian", tau=1.0):
+        """
+        Initialize the LwRegressor.
+
+        Parameters
+        ----------
+        kernel : str or callable, optional
+            The kernel function to use (default: "gaussian").
+        tau : float, optional
+            The bandwidth parameter for the kernel function (default: 1.0).
+        """
+        super().__init__(kernel=kernel, tau=tau)
+
+    def fit(self, X, y):
+        """
+        Fit the locally weighted regression model.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            The training data.
+        y : array-like, shape (n_samples,)
+            The target values.
+
+        Returns
+        -------
+        self : LwRegressor
+            The fitted model.
+        """
+        X, y = check_X_y(X, y)
+        self.X_ = X
+        self.y_ = y
+        return self
+
+    def predict(self, X):
+        """
+        Predict target values for the given input data.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            The input data.
+
+        Returns
+        -------
+        y_pred : ndarray, shape (n_samples,)
+            The predicted target values.
+        """
+        check_is_fitted(self, ['X_', 'y_'])
+        X = check_array(X)
+        y_preds = []
+        for x in X:
+            W = self._kernel_weights(self.X_, x)
+            X_aug = np.hstack([np.ones((self.X_.shape[0], 1)), self.X_])
+            x_aug = np.insert(x, 0, 1)
+            try:
+                theta = np.linalg.pinv(X_aug.T @ W @ X_aug) @ X_aug.T @ W @ self.y_
+                y_pred = x_aug @ theta
+            except np.linalg.LinAlgError:
+                y_pred = np.mean(self.y_)
+            y_preds.append(y_pred)
+        return np.array(y_preds)
+
+    def score(self, X, y):
+        """
+        Compute the R^2 score for the model.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            The input data.
+        y : array-like, shape (n_samples,)
+            The true target values.
+
+        Returns
+        -------
+        score : float
+            The R^2 score of the predictions.
+        """
+        return r2_score(y, self.predict(X))
+
+    def evaluate(self, y_true, y_pred, list_metrics=("MSE", "MAE")):
+        """
+        Evaluate the regression model using specified metrics.
+
+        Parameters
+        ----------
+        y_true : array-like
+            True target values.
+        y_pred : array-like
+            Predicted target values.
+        list_metrics : tuple of str, optional
+            List of metrics for evaluation (default: ("MSE", "MAE")).
+
+        Returns
+        -------
+        dict
+            Dictionary of calculated metric values.
+        """
+        return self._evaluate_reg(y_true, y_pred, list_metrics)  # Call the evaluation method
+
+    def scores(self, X, y, list_metrics=("MSE", "MAE")):
+        """
+        Compute evaluation metrics for the model on the given data.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            The input data.
+        y : array-like, shape (n_samples,)
+            The true target values.
+        list_metrics : tuple of str, optional
+            List of metrics for evaluation (default: ("MSE", "MAE")).
+
+        Returns
+        -------
+        dict
+            Dictionary of calculated metric values.
+        """
+        y_pred = self.predict(X)
+        return self.evaluate(y, y_pred, list_metrics)
+
