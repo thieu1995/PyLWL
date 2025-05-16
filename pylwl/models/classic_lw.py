@@ -221,3 +221,226 @@ class LwRegressor(BaseLW, RegressorMixin):
         y_pred = self.predict(X)
         return self.evaluate(y, y_pred, list_metrics)
 
+
+class LwClassifier(BaseLW, ClassifierMixin):
+    """
+    Locally Weighted Classifier.
+
+    This class implements a locally weighted classification model using a specified kernel function
+    and bandwidth parameter. It predicts class probabilities and labels by fitting a weighted linear
+    model for each query point.
+
+    Parameters
+    ----------
+    kernel : str or callable, optional
+        The kernel function to use. If a string is provided, it should match the name of a kernel
+        function in the `kernel_module`. If a callable is provided, it should accept distances
+        and `tau` as arguments and return weights.
+    tau : float, optional
+        The bandwidth parameter for the kernel function (default: 1.0).
+
+    Attributes
+    ----------
+    X_ : ndarray, shape (n_samples, n_features)
+        The training data.
+    y_raw_ : ndarray, shape (n_samples,)
+        The raw target values for the training data.
+    classes_ : ndarray, shape (n_classes,)
+        The unique class labels.
+    n_classes_ : int
+        The number of unique classes.
+    lb_ : LabelBinarizer
+        The label binarizer used for encoding class labels.
+    y_bin_ : ndarray, shape (n_samples, n_classes) or (n_samples,)
+        The binarized target values for the training data.
+    get_prob : callable
+        The method used to compute class probabilities (binary or multiclass).
+    """
+
+    def __init__(self, kernel="gaussian", tau=1.0):
+        """
+        Initialize the LwClassifier.
+
+        Parameters
+        ----------
+        kernel : str or callable, optional
+            The kernel function to use (default: "gaussian").
+        tau : float, optional
+            The bandwidth parameter for the kernel function (default: 1.0).
+        """
+        super().__init__(kernel=kernel, tau=tau)
+
+    def fit(self, X, y):
+        """
+        Fit the locally weighted classification model.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            The training data.
+        y : array-like, shape (n_samples,)
+            The target class labels.
+
+        Returns
+        -------
+        self : LwClassifier
+            The fitted model.
+        """
+        X, y = check_X_y(X, y)
+        self.X_ = X
+        self.y_raw_ = y
+        self.classes_ = np.unique(y)
+        self.n_classes_ = len(self.classes_)
+
+        self.lb_ = LabelBinarizer()
+        self.y_bin_ = self.lb_.fit_transform(y)
+        if self.n_classes_ == 2:
+            self.y_bin_ = self.y_bin_.ravel()
+            self.get_prob = self._get_binary
+        else:
+            self.get_prob = self._get_multiclass
+        return self
+
+    def _get_binary(self, logits):
+        """
+        Compute binary class probabilities.
+
+        Parameters
+        ----------
+        logits : list of float
+            The logits for the binary classification.
+
+        Returns
+        -------
+        list
+            The probabilities for each class.
+        """
+        prob = expit(logits[0])
+        return [1 - prob, prob]
+
+    def _get_multiclass(self, logits):
+        """
+        Compute multiclass probabilities.
+
+        Parameters
+        ----------
+        logits : list of float
+            The logits for the multiclass classification.
+
+        Returns
+        -------
+        ndarray
+            The probabilities for each class.
+        """
+        probs = softmax(logits)
+        return probs
+
+    def predict_proba(self, X):
+        """
+        Predict class probabilities for the given input data.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            The input data.
+
+        Returns
+        -------
+        probas : ndarray, shape (n_samples, n_classes)
+            The predicted class probabilities.
+        """
+        check_is_fitted(self, ['X_', 'y_bin_'])
+        X = check_array(X)
+        X_aug = np.hstack([np.ones((self.X_.shape[0], 1)), self.X_])
+        probas = []
+        for x in X:
+            W = self._kernel_weights(self.X_, x)
+            x_aug = np.insert(x, 0, 1)
+            logits = []
+            for k in range(self.n_classes_):
+                y_k = self.y_bin_[:, k] if self.n_classes_ > 2 else self.y_bin_
+                try:
+                    theta = np.linalg.pinv(X_aug.T @ W @ X_aug) @ X_aug.T @ W @ y_k
+                    logit = x_aug @ theta
+                except np.linalg.LinAlgError:
+                    logit = np.log(np.mean(y_k) / (1 - np.mean(y_k) + 1e-8))
+                logits.append(logit)
+            probas.append(self.get_prob(logits))
+        return np.array(probas)
+
+    def predict(self, X):
+        """
+        Predict class labels for the given input data.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            The input data.
+
+        Returns
+        -------
+        y_pred : ndarray, shape (n_samples,)
+            The predicted class labels.
+        """
+        probas = self.predict_proba(X)
+        class_indices = np.argmax(probas, axis=1)
+        return self.classes_[class_indices]
+
+    def score(self, X, y):
+        """
+        Compute the accuracy score for the model.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            The input data.
+        y : array-like, shape (n_samples,)
+            The true target class labels.
+
+        Returns
+        -------
+        score : float
+            The accuracy score of the predictions.
+        """
+        return accuracy_score(y, self.predict(X))
+
+    def evaluate(self, y_true, y_pred, list_metrics=("AS", "RS")):
+        """
+        Evaluate the classification model using specified metrics.
+
+        Parameters
+        ----------
+        y_true : array-like
+            True target class labels.
+        y_pred : array-like
+            Predicted class labels.
+        list_metrics : tuple of str, optional
+            List of metrics for evaluation (default: ("AS", "RS")).
+
+        Returns
+        -------
+        dict
+            Dictionary of calculated metric values.
+        """
+        return self._evaluate_cls(y_true=y_true, y_pred=y_pred, list_metrics=list_metrics)
+
+    def scores(self, X, y, list_metrics=("AS", "RS")):
+        """
+        Compute evaluation metrics for the model on the given data.
+
+        Parameters
+        ----------
+        X : array-like, shape (n_samples, n_features)
+            The input data.
+        y : array-like, shape (n_samples,)
+            The true target class labels.
+        list_metrics : tuple of str, optional
+            List of metrics for evaluation (default: ("AS", "RS")).
+
+        Returns
+        -------
+        dict
+            Dictionary of calculated metric values.
+        """
+        y_pred = self.predict(X)
+        return self.evaluate(y, y_pred, list_metrics)
